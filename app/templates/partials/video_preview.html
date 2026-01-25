@@ -1,0 +1,94 @@
+<div class="card fade-in">
+    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <!-- Thumbnail -->
+        <div style="flex: 1; min-width: 250px;">
+            <img src="{{ video.thumbnail }}" alt="{{ video.title }}"
+                style="width: 100%; border-radius: var(--radius); aspect-ratio: 16/9; object-fit: cover;">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-top: 1rem;">{{ video.title }}</h2>
+            <div style="display: flex; gap: 1rem; color: var(--text-secondary); font-size: 0.875rem;">
+                <span>⏱ {{ video.duration_str }}</span>
+                <span>👤 {{ video.uploader }}</span>
+            </div>
+        </div>
+
+        <div style="flex: 2; min-width: 300px;">
+            <!-- Formulario Principal de Descarga -->
+            <form hx-post="/api/v1/download" hx-swap="none"
+                onsubmit="alert('Descarga iniciada. Combinando Video + Audio seleccionado.')">
+
+                <input type="hidden" name="url" value="{{ video.url }}">
+                <input type="hidden" name="title" value="{{ video.title }}">
+
+                <!-- 1. Selección de Subtítulos -->
+                {% if video.subtitles %}
+                <div class="mb-4">
+                    <details
+                        style="background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--radius);">
+                        <summary style="padding: 0.75rem; cursor: pointer; font-size: 0.9rem;">
+                            📝 Subtítulos ({{ video.subtitles|length }}) <span style="font-size:0.8em">▼</span>
+                        </summary>
+                        <div
+                            style="padding: 1rem; border-top: 1px solid var(--border-color); max-height: 200px; overflow-y: auto;">
+                            <div
+                                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem;">
+                                {% for sub in video.subtitles %}
+                                <label
+                                    style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; cursor: pointer;">
+                                    <input type="checkbox" name="subtitles" value="{{ sub.lang }}">
+                                    <span title="{{ sub.name }}">{{ sub.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </details>
+                </div>
+                {% endif %}
+
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+
+                    <!-- 2. Selección de Video -->
+                    <div style="flex: 1; min-width: 200px;">
+                        <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">📺 Video Stream</h3>
+                        <select name="video_format_id"
+                            style="width: 100%; padding: 0.5rem; border-radius: var(--radius); background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color);"
+                            required>
+                            <option value="" disabled selected>Selecciona Calidad...</option>
+                            {% for fmt in video.video_formats %}
+                            <option value="{{ fmt.format_id }}">
+                                {{ fmt.resolution }} | {{ fmt.ext }} | {{ fmt.vcodec }} | {{ fmt.filesize_mb }}
+                                {% if fmt.acodec != 'none' %} (Incluye Audio){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Ordenado de
+                            menor a mayor calidad.</p>
+                    </div>
+
+                    <!-- 3. Selección de Audio -->
+                    <div style="flex: 1; min-width: 200px;">
+                        <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">🎵 Audio Stream (Mezclar)</h3>
+                        <select name="audio_format_id"
+                            style="width: 100%; padding: 0.5rem; border-radius: var(--radius); background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color);">
+                            <option value="" selected>Sin audio extra (usar el del video si tiene)</option>
+                            <option value="" disabled>--- Pistas de Audio ---</option>
+                            {% for fmt in video.audio_formats %}
+                            <option value="{{ fmt.format_id }}">
+                                🎧 {{ fmt.acodec }} | {{ fmt.filesize_mb }} | {{ fmt.ext }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Selecciona una
+                            pista para asegurar audio de alta calidad.</p>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary"
+                        style="width: 100%; padding: 1rem; font-size: 1.1rem;">
+                        ⬇ Descargar Video y Procesar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
