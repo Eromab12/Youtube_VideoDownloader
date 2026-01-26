@@ -10,6 +10,14 @@ from app.main import app as fastapi_app
 # 2. PyInstaller (apuntando a este archivo se resuelven mejor los imports)
 
 if __name__ == "__main__":
+    # FIX: PyInstaller --windowed establece stdout/stderr como None.
+    # Uvicorn intenta llamar a .isatty() en ellos y falla.
+    # Los redirigimos a devnull si no existen.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
+
     def open_browser():
         webbrowser.open("http://127.0.0.1:8000")
     

@@ -1,6 +1,6 @@
 import yt_dlp
-from app.schemas import VideoInfo, VideoFormat, SubtitleInfo
-from app.core.config import settings
+from .schemas import VideoInfo, VideoFormat, SubtitleInfo
+from .core.config import settings
 from typing import List, Dict, Any
 import os
 

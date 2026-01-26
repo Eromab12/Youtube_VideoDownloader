@@ -1,9 +1,8 @@
 import sys
 import os
 
-# Agregar el directorio raíz del proyecto al sys.path para permitir imports absolutos (from app...)
-# Esto soluciona errores de "ModuleNotFoundError: No module named 'app'"
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Borramos el hack de sys.path ya que usaremos imports relativos y el launcher maneja el root
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -11,29 +10,47 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import webbrowser
 from threading import Timer
-from app.core.config import settings
-from app.api.endpoints import router as api_router
+
+# Imports relativos (Mejor para paquete empaquetado)
+from .core.config import settings
+from .api.endpoints import router as api_router
 
 # Función para obtener rutas correctas ya sea en dev o en exe (PyInstaller)
 def get_resource_path(relative_path):
     """Obtiene la ruta absoluta al recurso, funciona para dev y para PyInstaller (sys._MEIPASS)"""
     if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
+        # En PyInstaller, a veces los datos se guardan en la raíz de _MEIPASS o dentro de app/
+        # Probamos ambos
+        base_path = sys._MEIPASS
+        # Intento 1: Directo (como lo agregamos en build_exe)
+        path = os.path.join(base_path, relative_path) # ej: _MEIPASS/app/static
+        if os.path.exists(path):
+            return path
+        # Intento 2: Si por alguna razón se aplanó (poco probable con add-data "app/x;app/x")
+        return os.path.join(base_path, "app", relative_path)
+        
     return os.path.join(os.path.dirname(__file__), relative_path)
 
 # Inicialización de la aplicación FastAPI
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
 
 # Montar estáticos usando la función de ruta segura
+# NOTA: Como main.py está dentro de app/, dirname(__file__) es .../app/
+# Si relative_path es "static", busca .../app/static. CORRECTO.
 static_dir = get_resource_path("static")
 if not os.path.exists(static_dir):
-    os.makedirs(static_dir) # En modo exe esto no debería ser necesario si se empaquetó bien
+    # Fallback para dev si get_resource_path falla
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    if not os.path.exists(static_dir): os.makedirs(static_dir)
+
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Configurar Templates usando la función de ruta segura
 templates_dir = get_resource_path("templates")
 if not os.path.exists(templates_dir):
-    os.makedirs(templates_dir)
+    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+    if not os.path.exists(templates_dir): os.makedirs(templates_dir)
+
 templates = Jinja2Templates(directory=templates_dir)
 
 # Incluir Rutas

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Form, Request, HTTPException, BackgroundTasks
 from fastapi.templating import Jinja2Templates
-from app.services import YtDlpService
-from app.schemas import VideoInfo
+from ..services import YtDlpService
+from ..schemas import VideoInfo
 import os
 
 router = APIRouter()
