@@ -13,8 +13,7 @@
 
         <div style="flex: 2; min-width: 300px;">
             <!-- Formulario Principal de Descarga -->
-            <form hx-post="/api/v1/download" hx-swap="none"
-                onsubmit="alert('Descarga iniciada. Combinando Video + Audio seleccionado.')">
+            <form hx-post="/api/v1/download" hx-swap="none" id="download-form">
 
                 <input type="hidden" name="url" value="{{ video.url }}">
                 <input type="hidden" name="title" value="{{ video.title }}">
@@ -89,6 +88,62 @@
                     </button>
                 </div>
             </form>
+
+            <!-- Terminal Output Area -->
+            <div id="terminal-container"
+                style="display:none; margin-top: 1.5rem; background: #0d1117; border-radius: var(--radius); padding: 1rem; color: #c9d1d9; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; border: 1px solid #30363d;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #30363d;">
+                    <span style="font-weight: bold; color: #58a6ff;">>_ Terminal Output</span>
+                    <button onclick="document.getElementById('terminal-container').style.display='none'"
+                        style="background:none; border:none; color: #8b949e; cursor: pointer; font-size: 1.2rem;">&times;</button>
+                </div>
+                <div id="terminal-log"
+                    style="height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;"></div>
+            </div>
+
+            <script>
+                document.getElementById('download-form').addEventListener('submit', function (e) {
+                    const terminal = document.getElementById('terminal-container');
+                    const logDiv = document.getElementById('terminal-log');
+
+                    // Reset and show terminal
+                    terminal.style.display = 'block';
+                    logDiv.innerHTML = '<span style="color: #8b949e;">[System] Connecting to terminal stream...</span>\n';
+
+                    // Connect to WebSocket
+                    const clientId = 'client-' + Math.random().toString(36).substring(7);
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/ws/logs/${clientId}`;
+
+                    let ws = new WebSocket(wsUrl);
+
+                    ws.onopen = function () {
+                        logDiv.innerHTML += '<span style="color: #3fb950;">[System] Connected. Waiting for logs...</span>\n';
+                    };
+
+                    ws.onmessage = function (event) {
+                        const msg = event.data;
+                        // Simple colorizing for common log levels
+                        let formattedMsg = msg;
+                        if (msg.includes('ERROR')) formattedMsg = `<span style="color: #f85149;">${msg}</span>`;
+                        else if (msg.includes('WARNING')) formattedMsg = `<span style="color: #d29922;">${msg}</span>`;
+                        else if (msg.includes('SUCCESS')) formattedMsg = `<span style="color: #3fb950;">${msg}</span>`;
+                        else if (msg.includes('[download]')) formattedMsg = `<span style="color: #58a6ff;">${msg}</span>`;
+
+                        logDiv.innerHTML += formattedMsg + '\n';
+                        logDiv.scrollTop = logDiv.scrollHeight;
+                    };
+
+                    ws.onerror = function (err) {
+                        logDiv.innerHTML += '<span style="color: #f85149;">[System] Connection error.</span>\n';
+                    };
+
+                    ws.onclose = function () {
+                        logDiv.innerHTML += '<span style="color: #8b949e;">[System] Stream closed.</span>\n';
+                    };
+                });
+            </script>
         </div>
     </div>
 </div>

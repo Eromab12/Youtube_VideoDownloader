@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Form, Request, HTTPException, BackgroundTasks
+import asyncio
 from fastapi.templating import Jinja2Templates
 from ..services import YtDlpService
 from ..schemas import VideoInfo
@@ -48,7 +49,13 @@ async def download_video(
     # Si no, solo 'video' (que puede tener audio integrado o no, riesgo del usuario si elije solo video mudo)
     final_format = f"{video_format_id}+{audio_format_id}" if audio_format_id else video_format_id
     
-    background_tasks.add_task(service.download_video_background, url, final_format, subtitles)
+    final_format = f"{video_format_id}+{audio_format_id}" if audio_format_id else video_format_id
+    
+    # Obtenemos el loop actual para pasarlo a la tarea en segundo plano
+    loop = asyncio.get_running_loop()
+    
+    background_tasks.add_task(service.download_video_background, url, final_format, subtitles, loop)
+    
     
     print(f"Tarea: {title} | Formato: {final_format} | Subs: {subtitles}")
     return {"status": "started", "message": f"Descargando {title}..."}

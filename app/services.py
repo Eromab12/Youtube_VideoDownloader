@@ -1,8 +1,33 @@
 import yt_dlp
 from .schemas import VideoInfo, VideoFormat, SubtitleInfo
 from .core.config import settings
+from .core.log_manager import log_manager
 from typing import List, Dict, Any
 import os
+import asyncio
+
+class YtDlpLogger:
+    def __init__(self, loop):
+        self.loop = loop
+
+    def debug(self, msg):
+        # Ignoramos mensajes de debug muy verbosos, pero dejamos los útiles
+        if msg.startswith('[debug] '): return
+        self._send(msg)
+
+    def info(self, msg):
+        self._send(msg)
+
+    def warning(self, msg):
+        self._send(f"WARNING: {msg}")
+
+    def error(self, msg):
+        self._send(f"ERROR: {msg}")
+
+    def _send(self, msg):
+        if self.loop and not self.loop.is_closed():
+            # Broadcast asíncrono desde hilo síncrono
+            asyncio.run_coroutine_threadsafe(log_manager.broadcast(msg), self.loop)
 
 class YtDlpService:
     """
@@ -42,12 +67,30 @@ class YtDlpService:
                 subtitles=processed_subs
             )
 
-    def download_video_background(self, url: str, format_id: str, subtitles: List[str] = None):
-        """
+    def download_video_background(self, url: str, format_id: str, subtitles: List[str] = None, loop=None):
+        """}
         Método sincrónico para ser ejecutado en BackgroundTasks.
         Realiza la descarga real. format_id puede ser un ID simple o una combinación 'video+audio'.
         """
         print(f"Iniciando descarga de {url} formato {format_id} con subs: {subtitles}...")
+
+        # Callback para progreso
+        def progress_hook(d):
+            if d['status'] == 'downloading':
+                # Construimos un mensaje de progreso
+                try:
+                    p = d.get('_percent_str', '0%').replace('%','')
+                    speed = d.get('_speed_str', 'N/A')
+                    eta = d.get('_eta_str', 'N/A')
+                    msg = f"[download] {p}% of {d.get('_total_bytes_str') or d.get('_total_bytes_estimate_str')} at {speed} ETA {eta}"
+                    # Enviamos
+                    if loop and not loop.is_closed():
+                        asyncio.run_coroutine_threadsafe(log_manager.broadcast(msg), loop)
+                except Exception:
+                    pass
+            elif d['status'] == 'finished':
+                if loop and not loop.is_closed():
+                    asyncio.run_coroutine_threadsafe(log_manager.broadcast(f"[finished] Download completed: {d.get('filename')}"), loop)
         
         ydl_opts = {
             'format': format_id, # Usamos el ID exacto que manda el frontend (probablemente video+audio)
@@ -57,14 +100,21 @@ class YtDlpService:
             'writesubtitles': bool(subtitles),
             'subtitleslangs': subtitles if subtitles else [],
             'embedsubtitles': bool(subtitles),
+            'logger': YtDlpLogger(loop) if loop else None,
+            'progress_hooks': [progress_hook] if loop else [],
         }
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             print(f"Descarga completada: {url}")
+            if loop and not loop.is_closed():
+                asyncio.run_coroutine_threadsafe(log_manager.broadcast(f"SUCCESS: Descarga completada para {url}"), loop)
+
         except Exception as e:
             print(f"Error descargando {url}: {e}")
+            if loop and not loop.is_closed():
+                asyncio.run_coroutine_threadsafe(log_manager.broadcast(f"ERROR: {str(e)}"), loop)
 
     def _process_formats(self, raw_formats: List[Dict[str, Any]]) -> tuple[List[VideoFormat], List[VideoFormat]]:
         video_formats = []

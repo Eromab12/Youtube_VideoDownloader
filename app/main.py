@@ -4,7 +4,8 @@ import os
 # Borramos el hack de sys.path ya que usaremos imports relativos y el launcher maneja el root
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from .core.log_manager import log_manager
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
@@ -55,6 +56,24 @@ templates = Jinja2Templates(directory=templates_dir)
 
 # Incluir Rutas
 app.include_router(api_router, prefix=settings.API_PREFIX)
+
+@app.websocket("/ws/logs/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    print(f"WS Connection request from {client_id}")
+    await log_manager.connect(websocket)
+    print(f"WS Connected {client_id}")
+    try:
+        while True:
+            # Mantener conexión viva, aunque solo enviamos info (server->client)
+            # Podríamos esperar mensajes del cliente si fuera necesario
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        print(f"WS Disconnected {client_id}")
+        log_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WS Error {client_id}: {e}")
+        log_manager.disconnect(websocket)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
