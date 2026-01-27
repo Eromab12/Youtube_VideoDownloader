@@ -13,7 +13,7 @@
 
         <div style="flex: 2; min-width: 300px;">
             <!-- Formulario Principal de Descarga -->
-            <form hx-post="/api/v1/download" hx-swap="none" id="download-form">
+            <form hx-post="/api/v1/download" hx-swap="none" id="download-form" hx-include="#settings-form *">
 
                 <input type="hidden" name="url" value="{{ video.url }}">
                 <input type="hidden" name="title" value="{{ video.title }}">

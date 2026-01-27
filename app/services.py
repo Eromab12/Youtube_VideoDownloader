@@ -67,12 +67,13 @@ class YtDlpService:
                 subtitles=processed_subs
             )
 
-    def download_video_background(self, url: str, format_id: str, subtitles: List[str] = None, loop=None):
-        """}
+    def download_video_background(self, url: str, format_id: str, subtitles: List[str] = None, options: Dict[str, Any] = None, loop=None):
+        """
         Método sincrónico para ser ejecutado en BackgroundTasks.
         Realiza la descarga real. format_id puede ser un ID simple o una combinación 'video+audio'.
         """
-        print(f"Iniciando descarga de {url} formato {format_id} con subs: {subtitles}...")
+        if options is None: options = {}
+        print(f"Iniciando descarga de {url} formato {format_id} con subs: {subtitles} y opciones: {options}...")
 
         # Callback para progreso
         def progress_hook(d):
@@ -92,14 +93,46 @@ class YtDlpService:
                 if loop and not loop.is_closed():
                     asyncio.run_coroutine_threadsafe(log_manager.broadcast(f"[finished] Download completed: {d.get('filename')}"), loop)
         
+        # Configuración de Post-Procesadores
+        postprocessors = []
+
+        # 1. Metadatos (Título, Autor, Descripción...)
+        if options.get('embed_metadata', False):
+            postprocessors.append({
+                'key': 'FFmpegMetadata',
+                'add_chapters': options.get('embed_chapters', False),
+                'add_metadata': True,
+            })
+
+        # 2. Miniatura (Cover Art)
+        if options.get('embed_thumbnail', False):
+            postprocessors.append({'key': 'EmbedThumbnail'})
+
+        # 3. Subtítulos (Si se incrustan)
+        if options.get('embed_subs', False):
+            # FFmpegEmbedSubtitle asegura que se incrusten
+            postprocessors.append({'key': 'FFmpegEmbedSubtitle'})
+
         ydl_opts = {
-            'format': format_id, # Usamos el ID exacto que manda el frontend (probablemente video+audio)
+            'format': format_id, 
             'outtmpl': os.path.join(settings.DOWNLOAD_DIR, '%(title)s [%(id)s].%(ext)s'),
             'quiet': False,
             'merge_output_format': 'mkv',
-            'writesubtitles': bool(subtitles),
+            
+            # Subtítulos Config
+            'writesubtitles': options.get('embed_subs', False) or bool(subtitles), 
             'subtitleslangs': subtitles if subtitles else [],
-            'embedsubtitles': bool(subtitles),
+            # embedsubtitles=True también activa el postprocesador interno, pero lo dejamos explícito arriba o aquí
+            # Lo dejamos aquí por compatibilidad
+            'embedsubtitles': options.get('embed_subs', False),
+            'subtitlesformat': options.get('sub_format', 'best'), # 'best' permite conversión automática si es necesario
+            
+            # Metadatos / Thumbnail Config
+            'writethumbnail': options.get('embed_thumbnail', False), # Necesario para bajarla antes de incrustar
+            
+            # Lista de procesadores
+            'postprocessors': postprocessors,
+            
             'logger': YtDlpLogger(loop) if loop else None,
             'progress_hooks': [progress_hook] if loop else [],
         }

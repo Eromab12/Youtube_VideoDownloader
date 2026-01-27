@@ -18,8 +18,22 @@ if __name__ == "__main__":
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w")
 
+    import socket
+
+    def find_available_port(start_port=8000, max_attempts=10):
+        """Busca un puerto libre iniciando desde start_port"""
+        port = start_port
+        for _ in range(max_attempts):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex(('127.0.0.1', port)) != 0:
+                    return port
+                port += 1
+        return start_port # Fallback to default if all usually taken
+
+    port = find_available_port()
+
     def open_browser():
-        webbrowser.open("http://127.0.0.1:8000")
+        webbrowser.open(f"http://127.0.0.1:{port}")
     
     # Solo abrir navegador si no estamos en modo reload (debug)
     # Pero para el exe final (sin reload) es util.
@@ -29,4 +43,5 @@ if __name__ == "__main__":
     from multiprocessing import freeze_support
     freeze_support()
     
-    uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, reload=False)
+    print(f"Iniciando servidor en http://127.0.0.1:{port}")
+    uvicorn.run(fastapi_app, host="127.0.0.1", port=port, reload=False)

@@ -39,7 +39,12 @@ async def download_video(
     title: str = Form(...),
     video_format_id: str = Form(...),
     audio_format_id: str = Form(None),
-    subtitles: list[str] = Form([])
+    subtitles: list[str] = Form([]),
+    embed_metadata: bool = Form(False),
+    embed_thumbnail: bool = Form(False),
+    embed_chapters: bool = Form(False),
+    embed_subs: bool = Form(False),
+    sub_format: str = Form("vtt")
 ):
     """
     Inicia la descarga combinando video y audio si es necesario.
@@ -54,8 +59,16 @@ async def download_video(
     # Obtenemos el loop actual para pasarlo a la tarea en segundo plano
     loop = asyncio.get_running_loop()
     
-    background_tasks.add_task(service.download_video_background, url, final_format, subtitles, loop)
+    options = {
+        'embed_metadata': embed_metadata,
+        'embed_thumbnail': embed_thumbnail,
+        'embed_chapters': embed_chapters,
+        'embed_subs': embed_subs,
+        'sub_format': sub_format
+    }
+
+    background_tasks.add_task(service.download_video_background, url, final_format, subtitles, options, loop)
     
     
-    print(f"Tarea: {title} | Formato: {final_format} | Subs: {subtitles}")
+    print(f"Tarea: {title} | Formato: {final_format} | Subs: {subtitles} | Options: {options}")
     return {"status": "started", "message": f"Descargando {title}..."}

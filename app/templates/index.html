@@ -1,11 +1,64 @@
 {% extends "base.html" %}
 
+{% block nav_items %}
+<button class="btn btn-secondary" onclick="toggleSidebar()">
+    ⚙️ Ajustes
+</button>
+{% endblock %}
+
 {% block content %}
 <div class="flex-center" style="min-height: 60vh; flex-direction: column;">
     <div class="text-center mb-4">
         <h1 class="mb-4" style="font-size: 2.5rem; font-weight: 800;">Descargador de YouTube</h1>
-        <p class="text-secondary" style="color: var(--text-secondary);">Pega el enlace del video que quieres descargar</p>
+        <p class="text-secondary" style="color: var(--text-secondary);">Pega el enlace del video que quieres descargar
+        </p>
     </div>
+
+    <aside id="settings-sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>⚙️ Configuración</h2>
+            <button class="close-btn" onclick="toggleSidebar()">×</button>
+        </div>
+
+        <form id="settings-form">
+            <div class="settings-group">
+                <h3>Metadatos</h3>
+                <label class="setting-item">
+                    <input type="checkbox" name="embed_metadata" checked>
+                    <span>Incrustar Metadatos (Autor, Título...)</span>
+                </label>
+                <label class="setting-item">
+                    <input type="checkbox" name="embed_thumbnail" checked>
+                    <span>Incrustar Miniatura</span>
+                </label>
+                <label class="setting-item">
+                    <input type="checkbox" name="embed_chapters" checked>
+                    <span>Incrustar Capítulos</span>
+                </label>
+            </div>
+
+            <div class="settings-group">
+                <h3>Subtítulos</h3>
+                <label class="setting-item">
+                    <input type="checkbox" name="embed_subs" checked>
+                    <span>Incrustar Subtítulos en Video</span>
+                </label>
+
+                <div class="mt-2">
+                    <label for="sub_format" style="display:block; margin-bottom: 0.5rem; font-size: 0.9rem;">Formato
+                        Preferido:</label>
+                    <select name="sub_format" id="sub_format" class="form-select">
+                        <option value="srt">SRT (SubRip)</option>
+                        <option value="vtt" selected>VTT (WebVTT)</option>
+                        <option value="ass">ASS (Advanced Substation)</option>
+                        <option value="lrc">LRC (Lyrics)</option>
+                    </select>
+                </div>
+            </div>
+        </form>
+    </aside>
+
+    <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
     <div class="card" style="width: 100%; max-width: 600px;">
         <form hx-post="/api/v1/preview" hx-target="#preview-area" hx-indicator="#loading">
@@ -26,4 +79,6 @@
         <!-- Aquí se cargará la vista previa con HTMX -->
     </div>
 </div>
+
+{% include "partials/sidebar_script.html" %}
 {% endblock %}
