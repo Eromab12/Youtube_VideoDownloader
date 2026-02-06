@@ -1,4 +1,4 @@
-# YTDL-NIS Python Downloader
+# YTDL-NIS Python Downloader (No sirve por los momentos)
 
 Un descargador de videos de YouTube moderno y minimalista construido con **Python**, **FastAPI** y **HTMX**. Diseñado como alternativa ligera y personalizable.
 
